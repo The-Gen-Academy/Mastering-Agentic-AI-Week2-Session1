@@ -1,0 +1,21 @@
+[project]
+name = "week2-session1"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "ipykernel>=7.2.0",
+    "langchain-classic>=1.0.7",
+    "langchain-community>=0.4.2",
+    "langchain-core>=1.4.0",
+    "langchain-openai>=1.2.2",
+    "langchain-pinecone>=0.2.13",
+    "langchain-text-splitters>=1.1.2",
+    "lxml>=6.1.1",
+    "pinecone>=7.3.0",
+    "python-dotenv>=1.2.2",
+    "rank-bm25>=0.2.2",
+    "streamlit>=1.45.0",
+]

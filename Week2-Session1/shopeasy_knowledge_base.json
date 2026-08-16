@@ -1,0 +1,614 @@
+[
+  {
+    "content": "Handling Payment Declined Errors (PAY_DECLINED_402)\n\nSymptoms:\nCustomer reports that their payment was declined at checkout. The error page shows code PAY_DECLINED_402 with the message \"Your payment could not be processed.\" The customer may say their card works fine on other websites.\n\nCommon Causes:\n1. The card issuer declined the transaction due to insufficient funds, spending limits, or fraud detection triggers.\n2. The billing address entered at checkout does not match the address on file with the card issuer (AVS mismatch).\n3. The card has expired or the CVV entered is incorrect.\n4. The customer's bank is blocking international transactions (ShopEasy processes payments through our EU-based payment gateway for some regions).\n5. The customer is using a prepaid or virtual card that does not support recurring authorizations (relevant for Subscribe & Save orders).\n\nResolution Steps:\n1. Ask the customer to verify the card details: number, expiration date, CVV, and billing address. Even a minor typo in the billing ZIP code can trigger a decline.\n2. If the details are correct, advise the customer to contact their bank or card issuer to authorize the transaction. Many banks flag first-time purchases from new merchants.\n3. Suggest an alternative payment method: PayPal, Apple Pay, Google Pay, or a different card. Navigate the customer to Checkout > Payment Methods > Add New.\n4. For Subscribe & Save orders showing PAY_DECLINED_402, verify the card supports recurring charges. Prepaid cards and some debit cards do not. Suggest switching to a credit card.\n5. If the customer confirms funds are available and the bank has no blocks, escalate to the Payments Engineering team via #payments-escalations with the order attempt ID (found in Admin Panel > Orders > Failed Attempts).",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "payments",
+      "priority": "P1",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Handling Payment Declined Errors (PAY_DECLINED_402)"
+    }
+  },
+  {
+    "content": "Processing Returns and Refunds\n\nSymptoms:\nCustomer wants to return an item and receive a refund. This runbook covers the standard return flow, exceptions, and edge cases.\n\nReturn Policy Summary:\n- Standard return window: 30 days from delivery date for most items.\n- Electronics: 15-day return window. Must be unopened/unused unless defective.\n- Final Sale items (marked with \"Final Sale\" badge): Non-returnable.\n- ShopEasy Plus members: Extended 60-day return window on all eligible items.\n\nResolution Steps:\n1. Verify the item is within the return window by checking the delivery date in Admin Panel > Orders > [Order ID] > Shipment Tracking.\n2. Check if the item category has special return conditions (electronics = 15 days, final sale = no returns).\n3. If eligible, initiate the return via Admin Panel > Orders > [Order ID] > Create Return. Select the reason code:\n   - RETURN_WRONG_ITEM: Customer received incorrect item\n   - RETURN_DEFECTIVE: Item arrived damaged or defective\n   - RETURN_NOT_AS_DESCRIBED: Item doesn't match listing\n   - RETURN_CHANGED_MIND: Customer no longer wants the item\n   - RETURN_SIZE_FIT: Wrong size or poor fit (clothing/shoes only)\n4. Generate the prepaid return shipping label. For RETURN_DEFECTIVE and RETURN_WRONG_ITEM, shipping is free. For other reasons, the $7.95 return shipping fee is deducted from the refund (waived for ShopEasy Plus members).\n5. Refund is processed within 3-5 business days after the warehouse confirms receipt of the returned item. Refund goes back to the original payment method.\n6. For items over $500, a supervisor must approve the return in Admin Panel > Returns > Pending Approval.",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "returns",
+      "priority": "P1",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Processing Returns and Refunds"
+    }
+  },
+  {
+    "content": "Investigating Shipping Delays (SHIP_DELAYED_301)\n\nSymptoms:\nCustomer reports their order has not arrived by the estimated delivery date. The tracking page may show SHIP_DELAYED_301 or the tracking status has not updated in 48+ hours. Customer may be frustrated especially if they paid for expedited shipping.\n\nCommon Causes:\n1. Carrier delay due to weather, volume surge (holiday season), or logistics disruption.\n2. The package is stuck at a carrier sorting facility. Common during peak periods (Black Friday, holiday season, Prime Day equivalent).\n3. Incorrect or incomplete shipping address caused a delivery exception.\n4. The package was marked as delivered but the customer hasn't received it (possible porch theft or misdelivery).\n5. Customs delay for international shipments \u2014 package is held pending documentation or duties payment.\n\nResolution Steps:\n1. Look up the order in Admin Panel > Orders > [Order ID] and check the current tracking status and carrier (FedEx, UPS, USPS, DHL for international).\n2. If tracking shows the package is in transit but delayed, provide the customer with the latest tracking update and a revised estimated delivery window. Use the carrier's API status (Admin Panel > Shipping > Carrier Tracking).\n3. If tracking hasn't updated in 48+ hours and the package is domestic, file a carrier investigation: Admin Panel > Shipping > File Claim. Carriers respond within 3-5 business days.\n4. If the customer paid for expedited shipping (2-Day or Next-Day) and the delivery is late, offer a shipping fee refund immediately \u2014 no investigation needed. Process via Admin Panel > Orders > [Order ID] > Refund Shipping.\n5. For \"delivered but not received\" cases, advise the customer to check with neighbors and building management. If still not found after 24 hours, file a lost package claim and offer either a full refund or a free replacement. Claims over $200 require supervisor approval.\n6. For international shipments held at customs, provide the customer with the customs reference number from tracking and advise them to contact their local customs office. ShopEasy cannot expedite customs clearance.",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "shipping",
+      "priority": "P1",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Investigating Shipping Delays (SHIP_DELAYED_301)"
+    }
+  },
+  {
+    "content": "Troubleshooting Promo Code Failures (PROMO_INVALID_100)\n\nSymptoms:\nCustomer reports that a promo code is not working at checkout. The error shown is either PROMO_INVALID_100 (\"This promo code is not valid\") or PROMO_EXPIRED_101 (\"This promo code has expired\"). Customer may insist they received the code via email or social media.\n\nCommon Causes:\n1. The promo code has expired. All codes have an expiration date visible in Admin Panel > Promotions > [Code].\n2. The code has a minimum order value that hasn't been met (e.g., \"SAVE20 \u2014 $20 off orders $100+\").\n3. The code is restricted to specific product categories. For example, ELECTRONICS15 only applies to items in the Electronics department.\n4. The code is restricted to first-time customers (new account codes like WELCOME10) and the customer has placed a previous order.\n5. The code has reached its maximum redemption limit (per-code global cap or per-customer usage limit).\n6. The customer is trying to stack multiple promo codes. ShopEasy allows only one promo code per order unless specifically noted.\n7. The code is for ShopEasy Plus members only (e.g., PLUSEXTRA10) and the customer does not have an active Plus membership.\n\nResolution Steps:\n1. Ask the customer for the exact promo code they're trying to use.\n2. Look up the code in Admin Panel > Promotions > Search. Check expiration date, minimum order value, category restrictions, and usage limits.\n3. If the code is valid but the customer doesn't meet the conditions, explain the specific restriction and suggest how they can qualify (e.g., add more items to meet the minimum).\n4. If the code has expired within the last 7 days, agents have discretion to apply a courtesy discount of equal value via Admin Panel > Orders > Apply Manual Discount. This requires noting the expired code in the discount reason.\n5. If the code appears valid and the customer meets all conditions but it still doesn't work, check the Known Issues board for any active checkout bugs. Escalate to #checkout-support with the promo code, customer ID, and cart contents.\n6. Never create or share promo codes that weren't officially distributed. All codes must come from the Marketing team.",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "payments",
+      "priority": "P2",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Troubleshooting Promo Code Failures (PROMO_INVALID_100)"
+    }
+  },
+  {
+    "content": "Handling Wrong Item Received\n\nSymptoms:\nCustomer reports they received an item different from what they ordered. This could mean a completely different product, the wrong color/size variant, or an item from someone else's order.\n\nCommon Causes:\n1. Warehouse pick error \u2014 the wrong item was pulled from the shelf during fulfillment.\n2. SKU mapping error \u2014 the product listing's SKU was mapped to the wrong physical item in the warehouse system.\n3. Variant confusion \u2014 the correct base product was shipped but in the wrong size, color, or configuration.\n4. Shipping label swap \u2014 two orders' shipping labels were accidentally switched during packing.\n\nResolution Steps:\n1. Verify the issue by asking the customer what they ordered vs. what they received. Check the order in Admin Panel > Orders > [Order ID] and compare the ordered SKU with the item description.\n2. Ask the customer for a photo of the received item and its packaging label (the internal SKU barcode sticker). This helps the warehouse team identify the pick error.\n3. Immediately offer the customer two options:\n   a. Full refund + keep the wrong item (for items under $50). Process via Admin Panel > Orders > Refund > Reason: RETURN_WRONG_ITEM.\n   b. Free replacement shipment + prepaid return label for the wrong item (for items $50+). Create the replacement via Admin Panel > Orders > [Order ID] > Create Replacement.\n4. For replacement shipments, select \"Expedited \u2014 2 Day\" shipping at no charge to the customer.\n5. Report the warehouse error: Admin Panel > Fulfillment > Report Pick Error with the original order ID and photos. The warehouse team investigates within 24 hours.\n6. If this is a recurring issue with a specific SKU, flag it via #fulfillment-quality with the SKU number for a warehouse audit.",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "orders",
+      "priority": "P1",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Handling Wrong Item Received"
+    }
+  },
+  {
+    "content": "Account Lockout and Suspicious Activity (ACC_LOCKED_503)\n\nSymptoms:\nCustomer reports they cannot log into their ShopEasy account. They see error ACC_LOCKED_503 with the message \"Your account has been temporarily locked for security reasons.\" The customer may also report receiving an email about suspicious activity.\n\nCommon Causes:\n1. Five consecutive failed login attempts within 15 minutes triggers an automatic 30-minute lockout.\n2. The account was flagged by the fraud detection system due to unusual activity: login from a new country, multiple high-value orders in quick succession, or use of a known compromised credential.\n3. A password reset was initiated but never completed, leaving the account in a transitional security state.\n4. The customer's email was found in a third-party data breach, and ShopEasy's security system proactively locked the account.\n\nResolution Steps:\n1. Verify the customer's identity: ask for the email on file, the last 4 digits of the payment method, and the last order number or delivery address.\n2. Check the account status in Admin Panel > Customers > [Customer ID] > Security. Note the lockout reason.\n3. For failed-login lockouts (reason: \"max_attempts\"), the account auto-unlocks after 30 minutes. Advise the customer to wait or use the \"Forgot Password\" flow which bypasses the lockout.\n4. For fraud-flagged accounts (reason: \"suspicious_activity\"), review the flagged activity in the Security tab. If the activity appears legitimate (e.g., customer is traveling), clear the flag and unlock the account.\n5. If the lock is due to a data breach alert, require the customer to reset their password before unlocking. Guide them through Admin Panel > Customers > [Customer ID] > Force Password Reset.\n6. For repeated lockouts or confirmed unauthorized access, escalate to the Security team via #account-security with the customer ID and activity log.",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "account",
+      "priority": "P1",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Account Lockout and Suspicious Activity (ACC_LOCKED_503)"
+    }
+  },
+  {
+    "content": "Resolving Inventory Sync Errors (INV_SYNC_ERR_700)\n\nSymptoms:\nCustomer places an order successfully, receives a confirmation email, but then gets a follow-up email saying the item is out of stock and the order has been cancelled. The product page may still show the item as \"In Stock.\" Internal systems show INV_SYNC_ERR_700.\n\nCommon Causes:\n1. The inventory count in the product catalog is out of sync with the actual warehouse count. The sync job runs every 15 minutes, so there's a window where overselling can occur.\n2. Multiple customers purchased the last unit(s) simultaneously, and the inventory reservation system didn't catch the conflict in time.\n3. The warehouse physically has the item but it's damaged or in a quarantine zone and not fulfillable.\n4. A bulk inventory update from a supplier feed contained stale data.\n\nResolution Steps:\n1. Apologize to the customer for the inconvenience. This is a frustrating experience \u2014 they thought the order was confirmed.\n2. Check if the item is available at an alternate warehouse: Admin Panel > Inventory > [SKU] > Warehouse Availability. If available elsewhere, offer to reship from that location (may add 1-2 days to delivery).\n3. If the item is truly out of stock across all warehouses, offer the customer three options:\n   a. Full refund (processed immediately).\n   b. Store credit for 110% of the order value (extra 10% as an apology).\n   c. Waitlist notification \u2014 add them to the restock alert for that SKU.\n4. If the customer paid for expedited shipping and the item is available at another warehouse, upgrade to free Next-Day shipping to compensate for the delay.\n5. Report the sync error: Admin Panel > Inventory > Report Sync Issue with the order ID and SKU. The Inventory Engineering team tracks these to improve sync frequency.",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "orders",
+      "priority": "P1",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Resolving Inventory Sync Errors (INV_SYNC_ERR_700)"
+    }
+  },
+  {
+    "content": "Subscribe & Save Issues\n\nSymptoms:\nCustomer reports issues with their Subscribe & Save recurring orders. This includes: unexpected charges, inability to skip or cancel a delivery, wrong items in subscription box, or the subscription discount not being applied.\n\nCommon Causes:\n1. The subscription renewal date passed before the customer attempted to skip/modify. Subscriptions lock 48 hours before the renewal date to allow fulfillment preparation.\n2. The subscribed item went out of stock and the system auto-substituted a similar product without customer approval (known bug, see CD-7823).\n3. The subscription discount (typically 15% off) is not stacking with a promo code. Subscribe & Save discounts and promo codes are mutually exclusive.\n4. The customer's payment method on file for the subscription expired, causing the renewal to fail and the subscription to pause.\n\nResolution Steps:\n1. Look up the subscription in Admin Panel > Subscriptions > [Subscription ID]. Note the renewal date, status, and linked payment method.\n2. For skip/cancel requests where the renewal has already processed: if the order hasn't shipped yet (status: \"Processing\"), cancel and refund. If shipped, process as a standard return with free return shipping.\n3. For auto-substitution complaints, apologize and offer a full refund for the substituted item. The customer can keep it. File the incident under bug CD-7823 tracking.\n4. For missing subscription discounts, verify the subscription status is \"Active\" (not \"Paused\"). Check if a promo code was also applied \u2014 if so, explain they don't stack and remove the promo code to apply the subscription discount if it's greater.\n5. For expired payment methods, update the card via Admin Panel > Subscriptions > [ID] > Payment Method, then manually trigger the renewal.",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "orders",
+      "priority": "P2",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Subscribe & Save Issues"
+    }
+  },
+  {
+    "content": "Handling Product Defect and Warranty Claims\n\nSymptoms:\nCustomer reports that a product they purchased is defective or has stopped working. They may be requesting a refund, replacement, or warranty repair. The item may be within or outside the standard return window.\n\nWarranty Coverage:\n- ShopEasy Standard Warranty: 1 year from purchase date on all electronics. Covers manufacturing defects, not accidental damage.\n- ShopEasy Extended Protection Plan: Optional 2-year or 3-year plan purchased at checkout. Covers accidental damage, drops, and spills.\n- Third-party brands may have their own manufacturer warranty (check product listing for details).\n\nResolution Steps:\n1. Determine if the item is within the 30-day return window (15 days for electronics). If yes, process as a standard defective return (RETURN_DEFECTIVE) with free shipping \u2014 no warranty claim needed.\n2. If outside the return window but within the 1-year ShopEasy warranty: verify the defect is a manufacturing issue (not accidental damage). Check the order date in Admin Panel > Orders > [Order ID].\n3. For warranty-eligible claims, create a warranty case: Admin Panel > Warranty > Create Claim. Attach customer photos of the defect. The warranty team responds within 48 hours with approval for a replacement or repair.\n4. If the customer purchased an Extended Protection Plan, check coverage in Admin Panel > Customers > [ID] > Protection Plans. Extended plans cover accidental damage \u2014 the customer only needs to provide photos and a brief description.\n5. For items covered under manufacturer warranty only (not ShopEasy), provide the manufacturer's warranty contact information from the product listing page. We cannot process these claims directly.\n6. For high-value items ($500+), offer to arrange a pickup from the customer's address instead of asking them to ship the item back.",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "returns",
+      "priority": "P2",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Handling Product Defect and Warranty Claims"
+    }
+  },
+  {
+    "content": "ShopEasy Plus Membership Issues\n\nSymptoms:\nCustomer reports issues with their ShopEasy Plus membership: benefits not being applied (free shipping, extended returns, member-only deals), unexpected membership charge, inability to cancel, or membership not showing as active after payment.\n\nShopEasy Plus Benefits:\n- Free standard shipping on all orders (no minimum)\n- Free 2-Day shipping on orders over $35\n- Extended 60-day return window\n- Exclusive member-only promo codes (PLUSEXTRA10, PLUSDEAL20, etc.)\n- 15% Subscribe & Save discount (vs. 10% for non-members)\n- Early access to sales events\n\nResolution Steps:\n1. Check the membership status in Admin Panel > Customers > [ID] > Plus Membership. Verify the start date, renewal date, and payment status.\n2. If benefits aren't being applied, check if the membership status is \"Active\". Sometimes a failed renewal payment puts the membership in \"Grace Period\" (7 days to update payment) or \"Lapsed\" status.\n3. For membership charges the customer doesn't recognize, check if they signed up during a free trial that auto-converted. The confirmation email is sent at signup \u2014 reference it for the customer. If they want to cancel, process via Admin Panel > Customers > [ID] > Plus > Cancel. Refund is available within 72 hours of the charge if no Plus benefits were used in the current billing period.\n4. For cancellation requests, process immediately and confirm the end date (membership stays active until the end of the paid period). Remind the customer they'll lose free shipping and extended returns.\n5. If the membership shows as paid but inactive, trigger a manual sync: Admin Panel > Customers > [ID] > Plus > Sync Status. This resolves 90% of status display issues.",
+    "metadata": {
+      "doc_type": "runbook",
+      "product_area": "account",
+      "priority": "P2",
+      "platform": "all",
+      "customer_tier": "plus",
+      "status": "active",
+      "title": "ShopEasy Plus Membership Issues"
+    }
+  },
+  {
+    "content": "Ticket #T-10234 \u2014 Customer's order ORD-88921 shows delivered but never received\n\nCustomer reported: \"My order was marked as delivered two days ago but I never got it. I was home all day. The tracking says it was left at the front door but nothing was there.\"\n\nInvestigation: Checked tracking via FedEx \u2014 GPS coordinates of the delivery scan were 0.3 miles from the customer's address. Likely misdelivered to a nearby address by the driver.\n\nResolution: Filed a lost package claim with FedEx. Issued a full refund of $127.45 to the customer's original payment method. Customer did not want a replacement. Refund processed within 2 business days. FedEx investigation confirmed misdelivery \u2014 package recovered and returned to our warehouse 5 days later.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "shipping",
+      "priority": "P1",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Order ORD-88921 shows delivered but never received"
+    }
+  },
+  {
+    "content": "Ticket #T-10302 \u2014 Promo code SUMMER25OFF not applying at checkout\n\nCustomer reported: \"I got an email with code SUMMER25OFF for 25% off my order but it says the code is invalid when I enter it at checkout. My cart is $89.\"\n\nInvestigation: Looked up SUMMER25OFF in Admin Panel > Promotions. The code was valid and active (expiry: Aug 31) with a $50 minimum order requirement \u2014 customer's cart meets that. However, the code was restricted to the Clothing and Home departments only. Customer's cart contained exclusively Electronics items (wireless earbuds and a phone case).\n\nResolution: Explained the department restriction to the customer. Suggested they add a qualifying item from the Clothing or Home department. Customer was disappointed. As a courtesy, applied a manual 15% discount (our discretion limit) to their electronics order since the email promotion didn't clearly state the category restriction. Flagged to the Marketing team that the promotional email should include category restrictions more prominently.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "payments",
+      "priority": "P3",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Promo code SUMMER25OFF not applying at checkout"
+    }
+  },
+  {
+    "content": "Ticket #T-10187 \u2014 Customer received wrong color variant of SKU-CL-7834-RD\n\nCustomer reported: \"I ordered the red dress (SKU-CL-7834-RD) but received the navy blue version. I need the red one for an event this weekend.\"\n\nInvestigation: Checked order ORD-76234. The order shows SKU-CL-7834-RD (Red, Size M). Warehouse pick sheet confirms the correct SKU was picked. However, the physical item in the warehouse bin for SKU-CL-7834-RD was actually the navy variant \u2014 a mis-binning error from the last inventory restock.\n\nResolution: Sent a free expedited replacement of the correct red variant via Next-Day shipping. Customer can keep the navy dress (item value $45, under $50 threshold). Reported the warehouse mis-binning to #fulfillment-quality with photo evidence from the customer. Warehouse team confirmed the bin was corrected within 4 hours. Customer received the red dress in time for their event.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "orders",
+      "priority": "P1",
+      "platform": "web",
+      "customer_tier": "plus",
+      "status": "resolved",
+      "title": "Wrong color variant of SKU-CL-7834-RD received"
+    }
+  },
+  {
+    "content": "Ticket #T-10456 \u2014 ShopEasy Plus member not getting free shipping\n\nCustomer reported: \"I'm a Plus member and I'm being charged $5.99 shipping on my order. I thought Plus includes free shipping on everything?\"\n\nInvestigation: Checked the customer's Plus membership \u2014 status was \"Grace Period.\" Their annual renewal payment had failed 4 days ago because the credit card on file expired. During Grace Period, Plus benefits are partially suspended: free standard shipping is still available but free 2-Day shipping requires a minimum of $35.\n\nResolution: Informed the customer their payment method had expired. Updated their card to a new Visa ending in 4412 via Admin Panel > Customers > [ID] > Plus > Update Payment. Triggered a manual renewal which processed successfully. Plus status returned to \"Active\" and the shipping charge was automatically removed from their pending order. Customer confirmed free shipping was now showing at checkout.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "account",
+      "priority": "P2",
+      "platform": "web",
+      "customer_tier": "plus",
+      "status": "resolved",
+      "title": "ShopEasy Plus member not getting free shipping"
+    }
+  },
+  {
+    "content": "Ticket #T-10098 \u2014 Payment declined PAY_DECLINED_402 for international customer\n\nCustomer reported: \"I'm trying to order from Canada and my Visa keeps getting declined. I've used this card on other US websites without any issues. Error says PAY_DECLINED_402.\"\n\nInvestigation: Customer is in Canada but the card is issued by a Canadian bank. ShopEasy's payment gateway routes Canadian orders through our EU payment processor by default (a legacy routing rule). The Canadian bank was declining the charge because it appeared to originate from Europe rather than North America.\n\nResolution: Manually routed the customer's payment through our North American payment processor: Admin Panel > Orders > Failed Attempts > [Attempt ID] > Retry with NA Gateway. Payment processed successfully. Escalated the routing issue to the Payments Engineering team \u2014 they updated the geo-routing rules to send Canadian transactions through the NA gateway by default. Fix deployed the following week.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "payments",
+      "priority": "P1",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Payment declined PAY_DECLINED_402 for international customer"
+    }
+  },
+  {
+    "content": "Ticket #T-10567 \u2014 Customer's refund not received after 10 business days\n\nCustomer reported: \"I returned my order two weeks ago and the tracking shows it was delivered to your warehouse, but I still haven't received my refund. Order ORD-91045 for $234.99.\"\n\nInvestigation: Checked Admin Panel > Returns > [Return ID]. The warehouse received the return 8 business days ago and marked it as \"Inspected \u2014 Approved.\" However, the refund was stuck in a \"Pending\" state in the payment system. The Stripe refund API call had failed with a timeout error and was never retried.\n\nResolution: Manually triggered the refund via Admin Panel > Returns > [Return ID] > Process Refund. The $234.99 refund was initiated immediately. Called the customer to apologize and confirm the refund would appear within 3-5 business days. Filed internal ticket CD-8901 to add automatic retry logic for failed refund API calls.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "returns",
+      "priority": "P1",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Refund not received after 10 business days for ORD-91045"
+    }
+  },
+  {
+    "content": "Ticket #T-10621 \u2014 Subscribe & Save auto-substituted wrong product\n\nCustomer reported: \"My monthly coffee subscription sent me decaf instead of regular. I've been getting the same Ethiopian blend for 6 months and suddenly it changed. I didn't authorize this.\"\n\nInvestigation: Checked subscription SUB-44521. The customer was subscribed to SKU-GR-1122-REG (Ethiopian Blend, Regular). That SKU went out of stock 3 days before the renewal. The system auto-substituted with SKU-GR-1122-DEC (Ethiopian Blend, Decaf) based on the closest matching SKU. The customer was not notified of the substitution before shipment \u2014 this is a known bug (CD-7823).\n\nResolution: Apologized for the substitution. Refunded the full subscription order amount ($24.99). Customer can keep the decaf. The original SKU was back in stock, so we manually triggered a replacement shipment of the correct regular blend with free Next-Day shipping. Added a note to the subscription to prevent future auto-substitution for this customer.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "orders",
+      "priority": "P2",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Subscribe & Save auto-substituted wrong coffee product"
+    }
+  },
+  {
+    "content": "Ticket #T-10345 \u2014 Electronics return rejected \u2014 customer says item is defective\n\nCustomer reported: \"I'm trying to return a Bluetooth speaker I bought 12 days ago. It makes a crackling sound at any volume above 50%. Your website rejected my return saying the item is 'used and not eligible.' It's defective, not used!\"\n\nInvestigation: Customer initiated the return through the self-service portal and selected reason code \"RETURN_CHANGED_MIND.\" For electronics, change-of-mind returns require the item to be unopened. The system automatically rejected it because the item was opened/used. However, the actual reason is a defect \u2014 the customer selected the wrong reason code.\n\nResolution: Re-initiated the return with the correct reason code RETURN_DEFECTIVE. The system accepted the return with free return shipping. Advised the customer that for defective items, always select \"Item is defective or damaged\" as the return reason. Also provided the prepaid shipping label via email. Item was returned, inspected, and confirmed defective (loose internal speaker wire). Full refund processed.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "returns",
+      "priority": "P2",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Electronics return rejected due to wrong reason code"
+    }
+  },
+  {
+    "content": "Ticket #T-10789 \u2014 Customer cannot log in after password reset \u2014 ACC_LOCKED_503\n\nCustomer reported: \"I forgot my password and clicked the reset link. I set a new password but now when I try to log in it says my account is locked (ACC_LOCKED_503). I just created a new password!\"\n\nInvestigation: The customer had 5 failed login attempts before requesting the password reset (using the old password). The lockout was triggered. They then reset the password via the email link, but the lockout timer (30 minutes) was still active. Password reset does not automatically clear the lockout.\n\nResolution: Verified identity (email, last order number, last 4 of payment method). Manually cleared the lockout via Admin Panel > Customers > [ID] > Security > Clear Lockout. Customer logged in successfully with the new password. Filed suggestion CD-9012 to auto-clear lockouts when a password reset is completed, since the user has proven identity via email.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "account",
+      "priority": "P2",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Account locked after password reset \u2014 ACC_LOCKED_503"
+    }
+  },
+  {
+    "content": "Ticket #T-10432 \u2014 Tracking number TRK-FX-998834 shows no movement for 5 days\n\nCustomer reported: \"My package tracking number TRK-FX-998834 hasn't updated since it left your warehouse 5 days ago. I paid for 2-Day shipping and it's been almost a week.\"\n\nInvestigation: Checked FedEx tracking \u2014 the package was scanned at departure from our NJ warehouse but had no further scans. FedEx status: \"In Transit \u2014 Delayed.\" Contacted FedEx directly and they confirmed the package was likely misrouted and was being traced at the Memphis sorting facility.\n\nResolution: Since the customer paid for 2-Day shipping, immediately refunded the $12.99 shipping charge. FedEx located the package the next day and put it back on a priority route. It was delivered 2 days later (7 days total from order). Also issued a $15 store credit as a goodwill gesture for the delay. Customer appreciated the proactive communication.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "shipping",
+      "priority": "P1",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Tracking number TRK-FX-998834 shows no movement for 5 days"
+    }
+  },
+  {
+    "content": "Ticket #T-10555 \u2014 Customer charged $0.01 test charges on card\n\nCustomer reported: \"I see three charges of $0.01 from ShopEasy on my bank statement. I didn't order anything. Is my account compromised?\"\n\nInvestigation: Checked the customer's account activity. No orders were placed. The $0.01 charges are authorization verification holds \u2014 they occur when a customer adds or updates a payment method. The customer had tried adding a new card three times (each attempt triggers a $0.01 hold to verify the card is valid).\n\nResolution: Explained that the $0.01 charges are temporary authorization holds that will automatically drop off within 3-5 business days. They are not actual charges. Reassured the customer their account is not compromised. Suggested checking Admin Panel > Customers > [ID] > Payment Methods to verify no unauthorized cards were added. All cards on file matched what the customer expected.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "payments",
+      "priority": "P3",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Customer charged $0.01 test authorization holds"
+    }
+  },
+  {
+    "content": "Ticket #T-10678 \u2014 Laptop arrived with cracked screen \u2014 SKU-EL-9021-SLV\n\nCustomer reported: \"My new laptop (order ORD-95123) arrived with a cracked screen right out of the box. The outer packaging looked fine but the screen is clearly damaged. This is a $1,299 item and I need it for work.\"\n\nInvestigation: Checked order ORD-95123 for SKU-EL-9021-SLV (ProBook Laptop 15\", Silver). The item shipped from our Texas warehouse with standard packaging. This particular SKU has had 3 other damage reports this month, suggesting insufficient inner packaging for the laptop's screen.\n\nResolution: Offered the customer a choice of full refund or immediate replacement. Customer chose replacement. Created a priority replacement order with Next-Day shipping at no charge. Arranged a free FedEx pickup from the customer's home for the damaged unit (no need to go to a shipping location). Escalated the packaging concern to #fulfillment-quality \u2014 this is the 4th screen damage report for SKU-EL-9021-SLV this month. Warehouse team added additional foam padding to the packaging spec for this SKU.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "orders",
+      "priority": "P0",
+      "platform": "web",
+      "customer_tier": "plus",
+      "status": "resolved",
+      "title": "Laptop SKU-EL-9021-SLV arrived with cracked screen"
+    }
+  },
+  {
+    "content": "Ticket #T-10890 \u2014 Customer claims they were charged for a cancelled order\n\nCustomer reported: \"I cancelled order ORD-97654 within an hour of placing it but I still see a charge of $67.89 on my credit card statement. The order status shows 'Cancelled' on your website.\"\n\nInvestigation: Checked order ORD-97654 \u2014 status confirmed as \"Cancelled\" with timestamp 42 minutes after order placement. The payment authorization was captured immediately at order time (standard practice) but the void/reversal was processed when the customer cancelled. The $67.89 showing on their statement is the original authorization hold, not an actual charge. The void was processed but the bank hasn't released the hold yet.\n\nResolution: Explained to the customer that the charge is a pre-authorization hold that will drop off within 3-7 business days (depending on their bank). Provided the void transaction reference ID from Stripe so the customer could share it with their bank to expedite the release. Customer called their bank and confirmed the hold was released the next day.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "payments",
+      "priority": "P2",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Customer charged for cancelled order ORD-97654"
+    }
+  },
+  {
+    "content": "Ticket #T-10912 \u2014 International order stuck at customs for 3 weeks\n\nCustomer reported: \"I ordered a skincare set to be delivered to Dubai. It's been at customs for 3 weeks with no updates. Tracking number TRK-DHL-445521. Can you help clear it?\"\n\nInvestigation: Checked DHL tracking for TRK-DHL-445521. Package was held at Dubai customs with status \"Awaiting documentation \u2014 commercial invoice required.\" ShopEasy's international shipping system should auto-generate commercial invoices, but this order contained a skincare product with specific ingredients that require additional customs declarations for UAE import.\n\nResolution: Generated and sent the required commercial invoice and ingredient declaration documents to DHL via our international shipping portal. DHL submitted them to UAE customs. Also contacted the customer to let them know there may be import duties of approximately 5% that they'll need to pay upon delivery (standard for UAE). Package cleared customs 4 days later and was delivered. Updated our product catalog to flag skincare items with ingredient-based customs requirements for Middle East shipments.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "shipping",
+      "priority": "P2",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "International order stuck at customs \u2014 TRK-DHL-445521"
+    }
+  },
+  {
+    "content": "Ticket #T-10134 \u2014 WELCOME10 code not working for new customer\n\nCustomer reported: \"I just created my account and tried to use the WELCOME10 code I saw in an ad for 10% off my first order but it says PROMO_INVALID_100. This is literally my first order.\"\n\nInvestigation: Looked up the customer's account \u2014 created 5 minutes ago, no previous orders. Checked WELCOME10 in Promotions \u2014 code is valid and active with restriction \"first-time customers only.\" However, the customer had a previous account with the same email address that was deactivated 8 months ago (they had forgotten about it). The system recognizes the email as a returning customer.\n\nResolution: Verified the previous account had no active orders or subscriptions. Applied the WELCOME10 discount manually ($8.40 off a $84 order) via Admin Panel > Orders > Apply Manual Discount since the customer genuinely believed they were new. Added a note explaining the edge case. Suggested to the product team that \"first-time customer\" logic should consider account deactivation status.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "payments",
+      "priority": "P3",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "WELCOME10 code not working for returning customer with old account"
+    }
+  },
+  {
+    "content": "Ticket #T-10445 \u2014 Bulk order of 50 items only partially shipped\n\nCustomer reported: \"I ordered 50 units of SKU-HM-3344-WHT for my small business. Only 32 arrived. The packing slip says 50 but the box only had 32. Order ORD-82345.\"\n\nInvestigation: Checked order ORD-82345 for SKU-HM-3344-WHT (White Ceramic Mug, 12oz). The order was fulfilled from our California warehouse. Warehouse records showed 50 units picked and packed. However, the total package weight logged by the carrier (14.2 lbs) is consistent with ~32 units (each mug weighs approx 0.44 lbs), not 50 (which would be ~22 lbs). This suggests a packing error where the count was recorded as 50 but only 32 were physically placed in the box.\n\nResolution: Shipped the remaining 18 units immediately with free expedited shipping. Filed a packing discrepancy report with the warehouse. The 50-count order also triggered a weight audit alert \u2014 weight-based fulfillment verification is now being tested as a quality control measure for bulk orders at the California warehouse.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "orders",
+      "priority": "P1",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Bulk order of SKU-HM-3344-WHT partially shipped"
+    }
+  },
+  {
+    "content": "Ticket #T-10201 \u2014 Mobile app checkout crashes on Android\n\nCustomer reported: \"Every time I try to check out on my Android phone (Samsung Galaxy S24), the app crashes when I tap 'Place Order'. I can browse and add to cart fine. I had to use the website instead.\"\n\nInvestigation: Checked app crash logs for the customer's device. The crash occurs in the payment module when the app attempts to initialize Google Pay on devices running Android 14 with the December 2025 security patch. The patch changed how apps can access the secure payment enclave.\n\nResolution: Confirmed this is a known issue (bug CD-8456). Advised the customer to use the mobile website (m.shopeasy.com) as a workaround until the fix is deployed. The fix is scheduled for app version 4.7.2 (ETA: 2 weeks). Also suggested the customer can disable Google Pay in the app settings and use manual card entry as an alternative checkout method on the app.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "payments",
+      "priority": "P2",
+      "platform": "mobile",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Mobile app checkout crashes on Android \u2014 CD-8456"
+    }
+  },
+  {
+    "content": "Ticket #T-10756 \u2014 Customer wants to return a Final Sale item\n\nCustomer reported: \"I bought a jacket on sale last week and it doesn't fit. I want to exchange it for a larger size. Your website won't let me start a return.\"\n\nInvestigation: Checked order details. The item was purchased during the Winter Clearance sale and was marked as \"Final Sale\" (non-returnable). The product page displayed the Final Sale badge and the checkout confirmation included the non-return disclosure.\n\nResolution: Explained that Final Sale items are non-returnable and non-exchangeable as stated at the time of purchase. The customer was frustrated. As a one-time courtesy (approved by supervisor), offered a store credit for 75% of the purchase price ($56.25 of the $75 item) that the customer could use toward the correct size if still available. Reminded the customer to check sizing guides before purchasing Final Sale items in the future. Customer accepted the store credit.",
+    "metadata": {
+      "doc_type": "past_ticket",
+      "product_area": "returns",
+      "priority": "P3",
+      "platform": "web",
+      "customer_tier": "regular",
+      "status": "resolved",
+      "title": "Customer wants to return a Final Sale item"
+    }
+  },
+  {
+    "content": "Return Policy\n\nShopEasy offers hassle-free returns on most items. Here are the details:\n\nStandard Return Window:\n- Most items: 30 days from the delivery date.\n- Electronics (laptops, phones, tablets, headphones, speakers): 15 days from delivery. Must be unopened/unused for change-of-mind returns. Defective electronics can be returned opened.\n- Final Sale items: Non-returnable. Clearly marked with a \"Final Sale\" badge on the product page and at checkout.\n- Perishable items (food, flowers): Non-returnable unless arrived damaged.\n\nShopEasy Plus members enjoy an extended 60-day return window on all eligible items.\n\nReturn Shipping:\n- Defective/wrong items: Free prepaid return label provided.\n- All other reasons: $7.95 return shipping fee deducted from refund.\n- ShopEasy Plus members: Free return shipping on all returns.\n\nRefund Processing:\n- Refunds are processed within 3-5 business days after the returned item is received and inspected at our warehouse.\n- Refunds are issued to the original payment method.\n- Store credit refunds are issued instantly.\n\nItems Over $500:\nReturns on items valued over $500 require supervisor approval and may take an additional 1-2 business days to process.\n\nExchanges:\nWe do not offer direct exchanges. To get a different size/color, return the original item for a refund and place a new order.",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "returns",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Return Policy"
+    }
+  },
+  {
+    "content": "Shipping Options and Delivery Times\n\nShopEasy offers multiple shipping options for domestic and international orders.\n\nDomestic Shipping (US):\n- Standard Shipping: 5-7 business days. $5.99 (Free on orders over $50, always free for Plus members).\n- Expedited 2-Day Shipping: 2 business days. $12.99 (Free for Plus members on orders over $35).\n- Next-Day Shipping: Next business day if ordered before 2 PM EST. $19.99.\n- Same-Day Delivery: Available in select metro areas (NYC, LA, Chicago, Seattle). $24.99. Orders must be placed before 10 AM local time.\n\nInternational Shipping:\n- Standard International: 10-21 business days. $14.99-$29.99 depending on destination.\n- Express International: 3-7 business days. $34.99-$59.99 depending on destination.\n- International orders may be subject to customs duties and import taxes, which are the customer's responsibility.\n\nCarriers: FedEx (primary domestic), UPS (secondary domestic), USPS (lightweight items), DHL (international).\n\nOrder Processing: Orders placed before 2 PM EST Monday-Friday are processed the same day. Weekend orders are processed on Monday.\n\nTracking: All orders include tracking. Tracking numbers are emailed when the order ships and are available in the customer's account under \"My Orders.\"\n\nShipping Restrictions: Hazardous materials (batteries over 100Wh, aerosols, flammable items) have carrier-specific restrictions for air shipping. Some items are not eligible for international shipping.",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "shipping",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Shipping Options and Delivery Times"
+    }
+  },
+  {
+    "content": "Payment Methods and Billing\n\nShopEasy accepts the following payment methods:\n\nCredit/Debit Cards:\n- Visa, Mastercard, American Express, Discover\n- Cards must have a valid billing address that matches the card issuer's records\n- International cards are accepted (Visa/Mastercard only)\n\nDigital Wallets:\n- PayPal\n- Apple Pay (web and iOS app)\n- Google Pay (web and Android app)\n- Shop Pay\n\nOther:\n- ShopEasy Gift Cards (can be combined with one other payment method)\n- ShopEasy Store Credit (automatically applied at checkout if available)\n- Affirm (Buy Now, Pay Later) \u2014 available for orders $50-$5,000\n\nPayment Processing:\n- Payment authorization occurs immediately at checkout\n- For credit/debit cards, the charge appears as \"SHOPEASY.COM\" on bank statements\n- Authorization holds ($0.01) are placed when adding or verifying a new payment method\n- Failed payments show error code PAY_DECLINED_402 \u2014 see troubleshooting guide for common causes\n\nPromo Codes:\n- One promo code per order unless specifically noted\n- Promo codes cannot be combined with Subscribe & Save discounts\n- ShopEasy Plus member codes (PLUSEXTRA10, PLUSDEAL20) require an active Plus membership\n- First-time customer codes (WELCOME10) are limited to accounts with no prior order history",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "payments",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Payment Methods and Billing"
+    }
+  },
+  {
+    "content": "ShopEasy Plus Membership\n\nShopEasy Plus is our premium membership program offering exclusive benefits for frequent shoppers.\n\nPricing: $119/year or $14.99/month.\n\nBenefits:\n- Free standard shipping on all orders (no minimum purchase)\n- Free 2-Day shipping on orders over $35\n- Extended 60-day return window (vs. 30 days for standard members)\n- Free return shipping on all returns\n- Exclusive member-only promo codes and early access to sales\n- 15% Subscribe & Save discount (vs. 10% for non-members)\n- Priority customer support (average wait time under 2 minutes)\n- Early access to Lightning Deals (30 minutes before general availability)\n\nFree Trial: New members get a 30-day free trial with full benefits. The trial auto-converts to a paid annual membership unless cancelled.\n\nGrace Period: If the renewal payment fails, the membership enters a 7-day grace period. During this time, most benefits continue except free 2-Day shipping (reverts to the $35 minimum for standard free shipping).\n\nCancellation: Members can cancel at any time. The membership remains active until the end of the current paid period. Refunds are available within 72 hours of a charge if no Plus benefits were used in the current billing period.\n\nHousehold Sharing: Plus memberships can be shared with up to 5 household members at no additional cost. Each member gets their own account with full Plus benefits.",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "account",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "plus",
+      "status": "active",
+      "title": "ShopEasy Plus Membership"
+    }
+  },
+  {
+    "content": "Product Categories and Departments\n\nShopEasy organizes products into the following departments:\n\nElectronics:\n- Phones & Accessories, Laptops & Computers, Audio & Headphones, Cameras, Smart Home, Gaming\n- Special return policy: 15-day window, must be unopened for change-of-mind returns\n- 1-year ShopEasy Standard Warranty on all electronics\n- Optional Extended Protection Plans available at checkout\n\nClothing & Fashion:\n- Women's, Men's, Kids', Shoes, Accessories, Jewelry\n- Size guides available on each product page\n- Free returns on clothing for size/fit issues (standard members pay $7.95 for other return reasons)\n\nHome & Kitchen:\n- Furniture, Kitchen Appliances, Bedding, Bath, Decor, Storage\n- Large items (furniture, appliances) ship via freight carrier with scheduled delivery\n- Assembly services available in select areas ($49-$149 depending on item)\n\nBeauty & Personal Care:\n- Skincare, Makeup, Haircare, Fragrance, Personal Care\n- Some products have international shipping restrictions (ingredients regulated by destination country)\n\nGrocery & Gourmet:\n- Pantry staples, Snacks, Beverages, Specialty & Gourmet\n- Subscribe & Save available for most grocery items (10% discount, 15% for Plus members)\n- Perishable items are non-returnable unless damaged on arrival\n\nSports & Outdoors:\n- Exercise equipment, Outdoor recreation, Team sports, Cycling, Camping\n- Oversize items (kayaks, treadmills) have special shipping surcharges",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "orders",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Product Categories and Departments"
+    }
+  },
+  {
+    "content": "Subscribe & Save Program\n\nShopEasy's Subscribe & Save program lets customers set up recurring deliveries for products they buy regularly.\n\nHow It Works:\n- Select \"Subscribe & Save\" on any eligible product page\n- Choose delivery frequency: every 2 weeks, monthly, every 2 months, or every 3 months\n- Receive an automatic discount: 10% off the regular price (15% for ShopEasy Plus members)\n- Subscriptions auto-renew and charge the payment method on file 48 hours before the shipment date\n\nManaging Subscriptions:\n- Skip a delivery: Must be done at least 48 hours before the scheduled shipment date\n- Change frequency: Effective on the next delivery cycle\n- Cancel: Can be cancelled at any time with no penalty. Cancellation takes effect after the current cycle\n- Swap products: Customers can change to a different variant (size, flavor, etc.) of the same product\n\nPricing:\n- Subscribe & Save discount does not stack with promo codes\n- If the product price changes, the subscription price updates automatically\n- If a subscribed item goes out of stock, the system will attempt to auto-substitute the nearest equivalent (same brand, similar product). Customers can disable auto-substitution in their subscription settings.\n\nPayment:\n- Payment is charged 48 hours before shipment\n- If payment fails, the subscription is paused and the customer is notified via email\n- After 3 consecutive payment failures, the subscription is automatically cancelled",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "orders",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Subscribe & Save Program"
+    }
+  },
+  {
+    "content": "Warranty and Extended Protection Plans\n\nShopEasy provides warranty coverage on qualifying products:\n\nShopEasy Standard Warranty (included free):\n- Applies to: All electronics products\n- Duration: 1 year from date of purchase\n- Coverage: Manufacturing defects, hardware failures under normal use\n- Not covered: Accidental damage, water damage, cosmetic wear, software issues\n- Claim process: Submit via Admin Panel > Warranty > Create Claim with photos and defect description. Response within 48 hours.\n\nShopEasy Extended Protection Plan (purchased at checkout):\n- 2-Year Plan: $29.99-$149.99 depending on item price\n- 3-Year Plan: $49.99-$249.99 depending on item price\n- Coverage: Everything in Standard Warranty PLUS accidental damage, drops, spills, and power surge damage\n- Claim process: Same as Standard Warranty. Approved claims receive a replacement or store credit.\n- Deductible: $0 for items under $200, $25 for items $200-$999, $49 for items $1,000+\n\nManufacturer Warranty:\n- Some brands offer their own warranty in addition to ShopEasy's coverage\n- Manufacturer warranty claims must be filed directly with the manufacturer\n- ShopEasy can provide proof of purchase documentation for manufacturer claims\n\nNote: Warranty and Protection Plan coverage does not extend to products purchased from third-party marketplace sellers unless specifically stated on the product listing.",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "returns",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Warranty and Extended Protection Plans"
+    }
+  },
+  {
+    "content": "Account Security and Privacy\n\nShopEasy takes account security seriously. Here are the security features and policies:\n\nLogin Security:\n- Password requirements: Minimum 8 characters, must include uppercase, lowercase, and a number\n- Two-factor authentication (2FA): Available via authenticator app or SMS. Strongly recommended for accounts with saved payment methods.\n- Account lockout: After 5 failed login attempts in 15 minutes, the account is locked for 30 minutes (error: ACC_LOCKED_503)\n- Suspicious activity detection: Logins from new countries, multiple high-value orders, or use of compromised credentials trigger automatic account review\n\nPassword Reset:\n- Via email: Customer receives a reset link valid for 24 hours\n- Via SMS: If phone number is verified, customer receives a 6-digit code\n- Note: Password reset does not automatically clear an active lockout (known limitation, fix planned)\n\nData Privacy:\n- Customers can download their data via Account Settings > Privacy > Download My Data (ZIP file, ready within 24 hours)\n- Account deletion requests are processed within 30 days as required by applicable privacy regulations\n- ShopEasy does not sell customer data to third parties\n\nSaved Payment Methods:\n- Card numbers are tokenized via Stripe \u2014 ShopEasy never stores full card numbers\n- Customers can manage saved payment methods via Account Settings > Payment Methods\n- Adding a new payment method triggers a $0.01 authorization hold for verification",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "account",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Account Security and Privacy"
+    }
+  },
+  {
+    "content": "Order Fulfillment and Warehouse Network\n\nShopEasy operates a network of fulfillment centers to ensure fast and reliable delivery:\n\nWarehouse Locations:\n- East Coast: Newark, NJ (primary hub)\n- Southeast: Atlanta, GA\n- Central: Dallas, TX\n- West Coast: Ontario, CA\n- Northwest: Seattle, WA (supports Same-Day delivery for Seattle metro)\n\nFulfillment Process:\n1. Order placed \u2192 Payment authorized \u2192 Order enters fulfillment queue\n2. Nearest warehouse with the item in stock is selected for fulfillment\n3. Item is picked from warehouse shelves, packed, and labeled\n4. Carrier (FedEx, UPS, USPS, or DHL) scans and picks up the package\n5. Tracking number is generated and emailed to the customer\n\nInventory Sync:\n- Warehouse inventory syncs with the product catalog every 15 minutes\n- During high-traffic events (Black Friday, Cyber Monday), sync frequency increases to every 5 minutes\n- In rare cases, an item may show as \"In Stock\" on the website but be unavailable at fulfillment time (error: INV_SYNC_ERR_700). In these cases, the order is cancelled and the customer is notified.\n\nSplit Shipments: Orders containing items from different warehouses may be shipped in multiple packages. Each package has its own tracking number. The customer is not charged additional shipping.",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "orders",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Order Fulfillment and Warehouse Network"
+    }
+  },
+  {
+    "content": "Gift Cards and Store Credit\n\nShopEasy Gift Cards:\n- Available in denominations from $10 to $500\n- Physical gift cards shipped in a gift box (add $3.99 for gift packaging)\n- Digital gift cards delivered via email within 1 hour of purchase\n- Gift cards never expire and have no fees\n- Can be combined with one other payment method at checkout (e.g., gift card + credit card)\n- Cannot be used to purchase other gift cards\n- Non-refundable\n\nShopEasy Store Credit:\n- Issued for returns (when customer selects store credit instead of original payment refund)\n- Issued as goodwill gestures for service failures (e.g., late delivery compensation)\n- Store credit is automatically applied at checkout if the customer has a balance\n- Store credit never expires\n- Cannot be transferred to another account or converted to cash\n\nChecking Balances:\n- Gift card balance: Enter the card number at shopeasy.com/gift-card-balance\n- Store credit balance: Visible in Account Settings > Payment Methods > Store Credit",
+    "metadata": {
+      "doc_type": "product_doc",
+      "product_area": "payments",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Gift Cards and Store Credit"
+    }
+  },
+  {
+    "content": "Bug CD-7823 \u2014 Subscribe & Save auto-substitution without customer notification\n\nSeverity: P2\nStatus: Active\nAffected Versions: App v4.5.0+, Web current\nProduct Area: Orders\n\nDescription:\nWhen a subscribed item goes out of stock before the renewal date, the system auto-substitutes the closest matching SKU (same brand, similar product). However, the notification email that should be sent to the customer before shipment is not being triggered. Customers receive the substituted item without any prior notice or ability to approve/reject the substitution.\n\nImpact: 47 customer complaints in the last 30 days. Most common substitutions: different flavors of food/beverage items, different colors of household products, and decaf vs. regular coffee.\n\nWorkaround: Support agents should proactively check subscriptions with upcoming renewals against the current inventory. If a subscribed item is out of stock, manually notify the customer and offer alternatives. Customers can also disable auto-substitution in their subscription settings (Subscriptions > [ID] > Preferences > Auto-Substitute: Off).\n\nPlanned Fix: The notification email template exists but the trigger event is not firing. Engineering identified a race condition between the inventory check and the email queue. Fix scheduled for release in v4.8.0 (ETA: 3 weeks).",
+    "metadata": {
+      "doc_type": "bug_report",
+      "product_area": "orders",
+      "priority": "P2",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Subscribe & Save auto-substitution without customer notification"
+    }
+  },
+  {
+    "content": "Bug CD-8456 \u2014 Mobile app crashes at checkout on Android 14 with December 2025 security patch\n\nSeverity: P2\nStatus: Active\nAffected Versions: App v4.6.0 \u2013 v4.7.1\nPlatform: Android (Samsung Galaxy S23/S24, Pixel 8/9)\n\nDescription:\nThe ShopEasy Android app crashes when the customer taps \"Place Order\" at checkout. The crash occurs in the Google Pay initialization module. Android 14's December 2025 security patch changed how apps access the secure payment enclave, and our app's Google Pay integration is using a deprecated API call.\n\nImpact: Approximately 8% of Android checkout attempts are failing. Affected users can still complete orders via the mobile website (m.shopeasy.com) or by disabling Google Pay in the app and using manual card entry.\n\nWorkaround: Advise customers to either (a) use the mobile website m.shopeasy.com, or (b) disable Google Pay in the app: Settings > Payment > Google Pay > Off, then enter card details manually at checkout.\n\nPlanned Fix: App v4.7.2 will update the Google Pay SDK to the latest version compatible with the new security patch. Currently in QA testing. ETA: 2 weeks.",
+    "metadata": {
+      "doc_type": "bug_report",
+      "product_area": "payments",
+      "priority": "P2",
+      "platform": "mobile",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Mobile app crashes at checkout on Android 14"
+    }
+  },
+  {
+    "content": "Bug CD-8901 \u2014 Refund API calls to Stripe not retried on timeout\n\nSeverity: P1\nStatus: Active\nAffected Versions: Current backend\n\nDescription:\nWhen the Stripe refund API call times out (which happens approximately 0.3% of the time), the system does not retry the call. This leaves the return in a \"Pending Refund\" state that requires manual intervention by a support agent. The customer sees \"Return Accepted\" but never receives their refund until an agent manually processes it.\n\nImpact: Approximately 15-20 refunds per week get stuck in this state. Average time to discovery is 5 business days (usually when the customer contacts support asking where their refund is).\n\nWorkaround: Support agents should check Admin Panel > Returns > Filter by Status: \"Pending Refund\" daily and manually process any stuck refunds. A daily report is now emailed to the returns team at 9 AM EST.\n\nPlanned Fix: Adding automatic retry with exponential backoff (3 attempts over 1 hour) for failed Stripe refund calls. Also adding a monitoring alert when a refund stays in \"Pending\" for more than 24 hours. Target release: next backend deployment (ETA: 1 week).",
+    "metadata": {
+      "doc_type": "bug_report",
+      "product_area": "returns",
+      "priority": "P1",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Refund API calls to Stripe not retried on timeout"
+    }
+  },
+  {
+    "content": "Bug CD-9012 \u2014 Account lockout not cleared after password reset\n\nSeverity: P3\nStatus: Active\nAffected Versions: Current\n\nDescription:\nWhen a customer's account is locked due to failed login attempts (ACC_LOCKED_503) and they complete a password reset via the email link, the lockout is not automatically cleared. The customer sets a new password but still cannot log in until the 30-minute lockout timer expires or a support agent manually clears the lockout.\n\nImpact: ~25 tickets per week where customers report being locked out despite having just reset their password. Creates unnecessary support volume and customer frustration.\n\nWorkaround: Support agents should manually clear the lockout via Admin Panel > Customers > [ID] > Security > Clear Lockout after verifying the customer completed the password reset.\n\nPlanned Fix: Auto-clear the lockout flag when a password reset is successfully completed (since the customer has proven identity via email). Target release: v4.8.0 (ETA: 3 weeks).",
+    "metadata": {
+      "doc_type": "bug_report",
+      "product_area": "account",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Account lockout not cleared after password reset"
+    }
+  },
+  {
+    "content": "Bug CD-8234 \u2014 Promo code PLUSEXTRA10 accepted for non-Plus members on mobile app\n\nSeverity: P2\nStatus: Resolved in App v4.6.1\nPlatform: Mobile (iOS and Android)\n\nDescription:\nThe Plus-member-only promo code PLUSEXTRA10 (10% off for Plus members) was being accepted at checkout on the mobile app even for customers without an active Plus membership. The membership validation check was only being performed on the web checkout, not in the mobile app's checkout flow.\n\nImpact: Approximately 340 non-Plus customers used the code over a 2-week period before discovery. Total discount leakage: ~$4,200.\n\nFix: Added Plus membership validation to the mobile checkout promo code validation pipeline. Deployed in app v4.6.1. The incorrectly applied discounts were written off as a marketing cost \u2014 no clawback from customers.",
+    "metadata": {
+      "doc_type": "bug_report",
+      "product_area": "payments",
+      "priority": "P2",
+      "platform": "mobile",
+      "customer_tier": "all",
+      "status": "resolved",
+      "title": "Promo code PLUSEXTRA10 accepted for non-Plus members on mobile"
+    }
+  },
+  {
+    "content": "Bug CD-8567 \u2014 Inventory sync delay causes overselling during flash sales\n\nSeverity: P1\nStatus: Active\nAffected Versions: Current\n\nDescription:\nDuring high-traffic flash sales (Lightning Deals, Black Friday), the 15-minute inventory sync interval is too slow. Multiple customers can purchase the last units of a product simultaneously, resulting in orders that cannot be fulfilled (INV_SYNC_ERR_700). The system confirms the order, charges the customer, and then cancels 1-2 hours later when the fulfillment system discovers the item is actually out of stock.\n\nImpact: During the last Black Friday event, 234 orders were cancelled post-confirmation due to overselling. This generated significant customer dissatisfaction and support volume.\n\nWorkaround: During known flash sale events, the ops team manually increases inventory sync frequency to every 5 minutes. For very high-demand items (expected to sell out in minutes), the inventory team enables \"real-time reservation\" mode which checks warehouse stock at the moment of purchase rather than relying on the cached count.\n\nPlanned Fix: Moving to event-driven inventory updates (push from warehouse management system rather than pull every N minutes). This will effectively eliminate the sync delay for stock changes. Target: Q2 2026.",
+    "metadata": {
+      "doc_type": "bug_report",
+      "product_area": "orders",
+      "priority": "P1",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Inventory sync delay causes overselling during flash sales"
+    }
+  },
+  {
+    "content": "FAQ: How do I track my order?\n\nOnce your order ships, you'll receive an email with your tracking number and a link to the carrier's tracking page. You can also check order status anytime by logging into your ShopEasy account and going to \"My Orders.\"\n\nEach shipment has its own tracking number. If your order was shipped from multiple warehouses, you'll receive separate tracking numbers for each package.\n\nCarriers used: FedEx (most domestic orders), UPS (heavy/oversize items), USPS (lightweight items), and DHL (international orders).\n\nIf your tracking hasn't updated in 48+ hours and the estimated delivery date has passed, contact our support team and we'll investigate with the carrier.",
+    "metadata": {
+      "doc_type": "faq",
+      "product_area": "shipping",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "How do I track my order?"
+    }
+  },
+  {
+    "content": "FAQ: What is ShopEasy's return policy?\n\nMost items can be returned within 30 days of delivery for a full refund. Electronics have a shorter 15-day window and must be unopened for change-of-mind returns (defective items can be returned opened). Final Sale items are non-returnable.\n\nShopEasy Plus members get an extended 60-day return window and free return shipping. Standard members pay $7.95 for return shipping unless the item is defective or was the wrong item.\n\nTo start a return, go to \"My Orders\" in your account, find the order, and click \"Return Item.\" Select the correct reason code \u2014 this determines whether return shipping is free. Refunds are processed within 3-5 business days after we receive the item.",
+    "metadata": {
+      "doc_type": "faq",
+      "product_area": "returns",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "What is ShopEasy's return policy?"
+    }
+  },
+  {
+    "content": "FAQ: Why was my payment declined?\n\nPayment declines (error PAY_DECLINED_402) can happen for several reasons:\n\n1. Incorrect card details \u2014 double-check the card number, expiration date, CVV, and billing ZIP code.\n2. Insufficient funds or spending limit reached on your card.\n3. Your bank flagged the transaction as potentially fraudulent (common for first-time purchases on new sites). Contact your bank to authorize the transaction.\n4. Your card doesn't support the transaction type (some prepaid and virtual cards don't work for recurring charges like Subscribe & Save).\n5. International transaction block \u2014 if you're outside the US, your bank may block the charge. Contact them to enable international transactions.\n\nIf your card is being declined but you believe it shouldn't be, try a different payment method (PayPal, Apple Pay, or a different card). You can also contact our support team for help troubleshooting.",
+    "metadata": {
+      "doc_type": "faq",
+      "product_area": "payments",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Why was my payment declined?"
+    }
+  },
+  {
+    "content": "FAQ: How does Subscribe & Save work?\n\nSubscribe & Save lets you set up automatic recurring deliveries for products you buy regularly \u2014 like coffee, paper towels, vitamins, or pet food.\n\nHere's how it works:\n1. On any eligible product page, select \"Subscribe & Save\" instead of \"One-Time Purchase.\"\n2. Choose how often you want delivery: every 2 weeks, monthly, every 2 months, or every 3 months.\n3. You'll automatically get 10% off the regular price (15% off if you're a ShopEasy Plus member).\n4. Your payment method is charged 48 hours before each scheduled shipment.\n\nYou can skip, modify, or cancel your subscription at any time through \"My Subscriptions\" in your account. Just make sure to do it at least 48 hours before the next shipment date, as orders lock for fulfillment prep after that.\n\nNote: Subscribe & Save discounts cannot be combined with promo codes. If you have both, the higher discount will be applied automatically.",
+    "metadata": {
+      "doc_type": "faq",
+      "product_area": "orders",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "How does Subscribe & Save work?"
+    }
+  },
+  {
+    "content": "FAQ: What is ShopEasy Plus and is it worth it?\n\nShopEasy Plus is our premium membership ($119/year or $14.99/month) that gives you:\n- Free shipping on every order (no minimum)\n- Free 2-Day shipping on orders over $35\n- Extended 60-day returns with free return shipping\n- 15% off Subscribe & Save orders (vs. 10% for non-members)\n- Exclusive deals and early access to sales\n\nIs it worth it? If you order from ShopEasy at least twice a month, the free shipping alone typically pays for the membership. The extended return window and free return shipping add extra peace of mind.\n\nYou can try it free for 30 days. If you decide it's not for you, cancel before the trial ends and you won't be charged. If you forget to cancel and haven't used any Plus benefits in the current billing period, you can get a refund within 72 hours of the charge.",
+    "metadata": {
+      "doc_type": "faq",
+      "product_area": "account",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "What is ShopEasy Plus and is it worth it?"
+    }
+  },
+  {
+    "content": "FAQ: Can I cancel an order after placing it?\n\nYou can cancel an order as long as it hasn't entered the packing stage. Here's how:\n\n1. Go to \"My Orders\" in your account\n2. Find the order and click \"Cancel Order\"\n3. If the button is available, your cancellation will be processed immediately\n\nIf the \"Cancel Order\" button is grayed out, the order has already been sent to the warehouse for packing and cannot be cancelled. In this case, you can refuse delivery when it arrives, or accept it and initiate a return.\n\nRefund for cancelled orders: If your payment was already captured (charged), the refund is processed immediately but may take 3-7 business days to appear on your statement depending on your bank. If only an authorization hold was placed, it will drop off your statement within 3-5 business days.",
+    "metadata": {
+      "doc_type": "faq",
+      "product_area": "orders",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "Can I cancel an order after placing it?"
+    }
+  },
+  {
+    "content": "FAQ: How do I contact ShopEasy customer support?\n\nWe're here to help! Here are the ways to reach us:\n\n- Live Chat: Available 24/7 on the website and mobile app. Click the chat icon in the bottom-right corner. Average wait time: 3 minutes (under 2 minutes for Plus members).\n- Phone: 1-800-SHOP-EASY (1-800-746-7327). Available Monday-Saturday, 8 AM - 10 PM EST. Sunday 10 AM - 6 PM EST.\n- Email: support@shopeasy.com. Responses within 24 hours (12 hours for Plus members).\n- Help Center: shopeasy.com/help \u2014 browse FAQs, track orders, start returns, and manage your account without waiting for an agent.\n\nFor fastest resolution, have your order number ready when you contact us. You can find it in your order confirmation email or under \"My Orders\" in your account.\n\nShopEasy Plus members get priority routing to our most experienced agents with shorter wait times on all channels.",
+    "metadata": {
+      "doc_type": "faq",
+      "product_area": "account",
+      "priority": "P3",
+      "platform": "all",
+      "customer_tier": "all",
+      "status": "active",
+      "title": "How do I contact ShopEasy customer support?"
+    }
+  }
+]
